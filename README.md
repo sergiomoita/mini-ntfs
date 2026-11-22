@@ -2,20 +2,56 @@
 
 O Mini-NTFS é um sistema de arquivos virtual e didático para a disciplina de Sistemas Operacionais. Usa ideias do NTFS para mostrar como metadados, diretórios e blocos de dados se relacionam. A aplicação define um formato próprio em JSON e roda em espaço de usuário. O escopo exclui a implementação completa do NTFS e a criação de um driver real.
 
-## Pré-requisitos
+## Clonar o projeto
 
-- Git para clonar o repositório. [Git para Windows](https://git-scm.com/download/win)
-- Node.js 22 a partir de `22.12.0`, ou Node.js 24 ou superior. Use a série 24 para reproduzir o ambiente validado. [Instaladores oficiais do Node.js](https://nodejs.org/en/download)
-- npm, incluído no instalador oficial do Node.js. A validação usou Node.js `24.14.1` e npm `11.11.0`.
-
-## Clonar e executar em outro computador
-
-No PowerShell, vá até a pasta onde deseja salvar o projeto. Ao executar `Read-Host`, cole a URL HTTPS do repositório no GitHub. A instalação usa as versões registradas no `package-lock.json` e vincula os três workspaces locais. [Documentação do `npm ci`](https://docs.npmjs.com/cli/v11/commands/npm-ci)
+Instale o Git e abra o PowerShell na pasta onde deseja salvar o projeto. Ao executar `Read-Host`, cole a URL HTTPS do repositório no GitHub. [Git para Windows](https://git-scm.com/download/win)
 
 ```powershell
 $repoUrl = Read-Host 'Cole a URL HTTPS do repositorio no GitHub'
 git clone $repoUrl mini-ntfs
 Set-Location -LiteralPath .\mini-ntfs
+```
+
+## Executar com Docker Compose
+
+No Windows, instale e abra o Docker Desktop em modo de contêineres Linux, com WSL 2 atualizado e virtualização habilitada. A primeira compilação precisa de acesso ao Docker Hub e ao registro npm. O `Dockerfile` usa `node:24.14.1-bookworm-slim` e instala os workspaces com `npm ci` dentro da imagem. [Instalação oficial do Docker Desktop no Windows](https://docs.docker.com/desktop/setup/install/windows-install/)
+
+Na raiz do clone, confira o Compose e inicie a aplicação.
+
+```powershell
+docker compose version
+docker compose up --build
+```
+
+Abra `http://localhost:5173`. O contêiner `web` executa o Vite na porta 5173 após a API responder ao teste de saúde. As requisições para `/api` seguem pelo proxy para `http://api:3001`, o endereço interno do contêiner `api` na rede do Compose. A API também está disponível no computador em `http://localhost:3001`. Os dois serviços usam o mesmo `Dockerfile` e publicam as portas na interface local. [Rede do Docker Compose](https://docs.docker.com/compose/how-tos/networking/)
+
+Para deixar os serviços em segundo plano, use `docker compose up --build -d`. Para encerrar, interrompa com **Ctrl+C** se estiver em primeiro plano e rode `docker compose down`. [Inicialização com Docker Compose](https://docs.docker.com/reference/cli/docker/compose/up/)
+
+### Dados no Docker
+
+O contêiner `api` guarda `/app/data/volume.json` no volume nomeado `mini-ntfs_data` quando o Compose usa o nome padrão `mini-ntfs`. Esse armazenamento fica separado de `data/volume.json` na pasta do projeto. `docker compose down` preserva o volume, que volta a ser usado no próximo `up`. **Evite `docker compose down -v` durante a apresentação, pois essa opção apaga o volume e os arquivos virtuais.** [Encerramento com Docker Compose](https://docs.docker.com/reference/cli/docker/compose/down/)
+
+Para ensaiar a persistência, salve um arquivo pela interface, execute `docker compose restart` e abra novamente o mesmo arquivo após os serviços voltarem.
+
+### Conferir serviços e logs
+
+```powershell
+docker compose config
+docker compose ps
+docker compose logs --tail=100 api web
+Invoke-RestMethod http://localhost:3001/api/health
+Invoke-RestMethod http://localhost:5173/api/health
+```
+
+As duas consultas devem retornar `ok: true`. Se a consulta direta passar e a do proxy falhar, confira os logs de `web`. Se o Docker indicar que o engine está indisponível, abra o Docker Desktop e aguarde a inicialização. Se a porta 3001 ou 5173 estiver ocupada, identifique o processo conforme a seção de resolução de erros.
+
+## Executar sem Docker
+
+Use Node.js 22 a partir de `22.12.0` ou Node.js 24 ou superior. O instalador oficial inclui npm. Para reproduzir o ambiente validado, use a série 24. A validação local usou Node.js `24.14.1` e npm `11.11.0`. [Instaladores oficiais do Node.js](https://nodejs.org/en/download)
+
+Na raiz do clone, instale as versões registradas no `package-lock.json`. [Documentação do `npm ci`](https://docs.npmjs.com/cli/v11/commands/npm-ci)
+
+```powershell
 npm.cmd ci
 ```
 
@@ -63,7 +99,7 @@ Na sobrescrita, o Core libera os blocos antigos numa cópia do volume e percorre
 
 ## Persistência e limites
 
-Cada cópia do projeto usa por padrão seu próprio `data/volume.json`, relativo à raiz do repositório. Quando o arquivo está ausente, a API prepara a pasta se necessário e cria um volume com a raiz e os 64 blocos livres. Quando o arquivo existe, o Core o valida e carrega os dados. O `.gitignore` exclui os volumes locais e os temporários de `data/`.
+Na execução sem Docker, cada cópia do projeto usa por padrão seu próprio `data/volume.json`, relativo à raiz do repositório. Quando o arquivo está ausente, a API prepara a pasta se necessário e cria um volume com a raiz e os 64 blocos livres. Quando o arquivo existe, o Core o valida e carrega os dados. O `.gitignore` exclui os volumes locais e os temporários de `data/`.
 
 Cada alteração grava a cópia do estado em um arquivo temporário no mesmo diretório e o renomeia para o caminho do volume. No Windows, um `EPERM` nessa troca pode ter até quatro novas tentativas, com 25 ms de intervalo. O Core só substitui o estado em memória depois da gravação. Se faltar espaço ou a gravação falhar, o estado anterior é preservado.
 
@@ -71,7 +107,7 @@ Cada alteração grava a cópia do estado em um arquivo temporário no mesmo dir
 - Use uma instância local da API por volume. Cada alteração regrava o JSON inteiro de forma síncrona. A durabilidade em caso de queda de energia depende do sistema de arquivos hospedeiro.
 - A demonstração se concentra em metadados e alocação. Permissões de sistema, journaling e recuperação de corrupção estão fora do escopo.
 
-Para ensaiar com um volume separado, defina `MINI_NTFS_VOLUME_PATH` no terminal antes de iniciar a API. O valor pode ser absoluto ou relativo à raiz do projeto. Reutilize o mesmo caminho quando reiniciar a API para continuar com o volume escolhido.
+Para ensaiar sem Docker com um volume separado, defina `MINI_NTFS_VOLUME_PATH` no terminal antes de iniciar a API. O valor pode ser absoluto ou relativo à raiz do projeto. Reutilize o mesmo caminho quando reiniciar a API para continuar com o volume escolhido.
 
 ```powershell
 $env:MINI_NTFS_VOLUME_PATH = 'data/volume-ensaio.json'

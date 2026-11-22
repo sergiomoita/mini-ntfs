@@ -1,3 +1,5 @@
+import { env } from 'node:process';
+
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
@@ -8,7 +10,7 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      '/api': 'http://localhost:3001',
+      '/api': env.MINI_NTFS_API_PROXY_TARGET ?? 'http://localhost:3001',
     },
   },
 });

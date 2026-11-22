@@ -6,7 +6,7 @@ import { MiniFileSystem, VOLUME_LABEL } from '@mini-ntfs/filesystem';
 
 import { createApiRouter, handleApiError } from './routes.js';
 
-const host = 'localhost';
+const host = process.env.MINI_NTFS_API_HOST ?? 'localhost';
 const port = 3001;
 const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
 const configuredVolumePath = process.env.MINI_NTFS_VOLUME_PATH;
