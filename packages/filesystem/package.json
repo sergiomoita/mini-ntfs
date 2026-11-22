@@ -1,0 +1,15 @@
+{
+  "name": "@mini-ntfs/filesystem",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@types/node": "^22.12.0",
+    "vitest": "^4.0.0"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "mini-ntfs",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": {
+    "node": "^22.12.0 || >=24.0.0"
+  },
+  "scripts": {
+    "dev:api": "npm run dev -w @mini-ntfs/api",
+    "dev:web": "npm run dev -w @mini-ntfs/web",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "npm run test -w @mini-ntfs/filesystem",
+    "build": "npm run build -w @mini-ntfs/web"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
